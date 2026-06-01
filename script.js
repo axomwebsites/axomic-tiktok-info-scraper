@@ -18,13 +18,10 @@
   const btnshare = document.getElementById('btnShare');
   const btnimport = document.getElementById('btnImport');
   const importfileinput = document.getElementById('importFileInput');
-  const themetogglebtn = document.getElementById('themeToggle');
-  const mapwrapper = document.getElementById('mapWrapper');
-  const mapcountrylabel = document.getElementById('mapCountryLabel');
+  const themeselect = document.getElementById('themeSelect');
   const scrolltogglebtn = document.getElementById('scrollToggleBtn');
   const nameanalysissec = document.getElementById('nameAnalysisSection');
   const gendercontent = document.getElementById('genderContent');
-  const nationalitycontent = document.getElementById('nationalityContent');
   const avatarmodaloverlay = document.getElementById('avatarModalOverlay');
   const avatarmodalclose = document.getElementById('avatarModalClose');
   const avatarmodalimg = document.getElementById('avatarModalImg');
@@ -34,9 +31,6 @@
   let currentavatarurl = null;
   let currentusername = null;
   let countriesdata = [];
-  let languagesdata = [];
-  let svgdoc = null;
-  let svgrootelement = null;
 
   const corsproxies = [
     (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
@@ -49,19 +43,9 @@
     return resp.json();
   }
 
-  async function loadsvgmap(path) {
-    const resp = await fetch(path);
-    const text = await resp.text();
-    const parser = new DOMParser();
-    return parser.parseFromString(text, 'image/svg+xml');
-  }
-
   (async function initData() {
     try {
-      [countriesdata, languagesdata] = await Promise.all([loadjson('countries.json'), loadjson('languages.json')]);
-    } catch(e) {}
-    try {
-      svgdoc = await loadsvgmap('world.svg');
+      countriesdata = await loadjson('countries.json');
     } catch(e) {}
   })();
 
@@ -73,17 +57,15 @@
 
   function settheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
-    const icon = themetogglebtn.querySelector('i');
-    icon.className = theme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
     localStorage.setItem('tiktoktheme', theme);
+    themeselect.value = theme;
   }
 
-  function toggletheme() {
-    const cur = document.documentElement.getAttribute('data-theme');
-    settheme(cur === 'dark' ? 'light' : 'dark');
-  }
-  settheme(localStorage.getItem('tiktoktheme') || 'light');
-  themetogglebtn.addEventListener('click', toggletheme);
+  themeselect.addEventListener('change', (e) => {
+    settheme(e.target.value);
+  });
+  const savedtheme = localStorage.getItem('tiktoktheme') || 'light';
+  settheme(savedtheme);
 
   function updatescrollvisibility() {
     const scrolly = window.scrollY;
@@ -143,10 +125,6 @@
     currentscrapeddata = null;
     currentavatarurl = null;
     if (nameanalysissec) nameanalysissec.style.display = 'none';
-    if (mapwrapper && svgrootelement) {
-      mapwrapper.querySelectorAll('path.highlighted').forEach(p => p.classList.remove('highlighted'));
-      if (svgrootelement._originalviewbox) svgrootelement.setAttribute('viewBox', svgrootelement._originalviewbox);
-    }
   }
 
   async function fetchtiktokpage(username) {
@@ -190,81 +168,18 @@
     return parts[1] && parts[1].length >= 2 ? parts[1] : null;
   }
 
-  async function analyzename(nickname) {
+  async function analyzegender(nickname) {
     const first = extractfirstname(nickname);
     if (!first) { if (nameanalysissec) nameanalysissec.style.display = 'none'; return; }
     if (nameanalysissec) nameanalysissec.style.display = '';
     gendercontent.innerHTML = '...';
-    nationalitycontent.innerHTML = '...';
     const enc = encodeURIComponent(first);
-    const [genderRes, nationRes] = await Promise.allSettled([
-      fetch(`https://api.genderize.io?name=${enc}`).then(r => r.json()),
-      fetch(`https://api.nationalize.io?name=${enc}`).then(r => r.json())
-    ]);
-    if (genderRes.status === 'fulfilled' && genderRes.value.gender) {
-      const g = genderRes.value;
-      const pct = Math.round(g.probability * 100);
-      const icon = g.gender === 'male' ? '<i class="fa-solid fa-mars"></i>' : '<i class="fa-solid fa-venus"></i>';
-      gendercontent.innerHTML = `<span class="analysis-value">${icon} ${g.gender}</span> <span class="sub">${pct}%</span>`;
+    const genderRes = await fetch(`https://api.genderize.io?name=${enc}`).then(r => r.json()).catch(() => null);
+    if (genderRes && genderRes.gender) {
+      const pct = Math.round(genderRes.probability * 100);
+      const icon = genderRes.gender === 'male' ? '<i class="fa-solid fa-mars"></i>' : '<i class="fa-solid fa-venus"></i>';
+      gendercontent.innerHTML = `<span class="analysis-value">${icon} ${genderRes.gender}</span> <span class="sub">${pct}%</span>`;
     } else gendercontent.innerHTML = 'unavailable';
-    if (nationRes.status === 'fulfilled' && nationRes.value.country?.length) {
-      const top = nationRes.value.country[0];
-      const c = getcountrybycode(top.country_id);
-      const pct = Math.round(top.probability * 100);
-      let display = top.country_id;
-      if (c) {
-        display = `${c.name} (${c.code}) ${c.emoji || ''}`;
-      }
-      nationalitycontent.innerHTML = `<span class="analysis-value">${display}</span> <span class="sub">${pct}%</span>`;
-    } else nationalitycontent.innerHTML = 'unavailable';
-  }
-
-  function injectmap() {
-    if (!svgdoc || !mapwrapper) return;
-    const clone = svgdoc.documentElement.cloneNode(true);
-    mapwrapper.innerHTML = '';
-    mapwrapper.appendChild(clone);
-    svgrootelement = clone;
-    svgrootelement._originalviewbox = svgrootelement.getAttribute('viewBox');
-    svgrootelement.querySelectorAll('path[id]').forEach(p => {
-      const id = p.getAttribute('id');
-      if (id && id.length === 2) {
-        const c = getcountrybycode(id);
-        if (c) p.setAttribute('data-country', c.name);
-      }
-    });
-  }
-
-  async function highlightcountry(code) {
-    if (!code || !svgrootelement) return;
-    await new Promise(r => setTimeout(r, 50));
-    const paths = mapwrapper.querySelectorAll('path');
-    paths.forEach(p => p.classList.remove('highlighted'));
-    let target = svgrootelement.getElementById(code.toLowerCase());
-    if (!target) target = Array.from(svgrootelement.querySelectorAll('path')).find(p => p.getAttribute('id')?.toLowerCase() === code.toLowerCase());
-    const country = getcountrybycode(code);
-    if (target) {
-      target.classList.add('highlighted');
-      if (country) {
-        mapcountrylabel.innerHTML = `${country.name} (${country.code}) ${country.emoji || ''}`;
-      } else {
-        mapcountrylabel.innerHTML = code;
-      }
-      try {
-        const box = target.getBBox();
-        const pad = 25;
-        const newview = [box.x - pad, box.y - pad, box.width + pad*2, box.height + pad*2].join(' ');
-        svgrootelement.style.transition = 'viewBox 0.5s';
-        svgrootelement.setAttribute('viewBox', newview);
-        svgrootelement.addEventListener('transitionend', () => svgrootelement.style.transition = '', { once: true });
-      } catch(e) {}
-    } else {
-      if (country) {
-        mapcountrylabel.innerHTML = `${country.name} (${country.code}) ${country.emoji || ''}`;
-      } else {
-        mapcountrylabel.innerHTML = code;
-      }
-    }
   }
 
   function renderresults(user, stats) {
@@ -294,10 +209,8 @@
       <div class="detail-entry"><i class="fa-solid fa-calendar-alt"></i><div><strong>joined</strong><br>${formattimestamp(user.createTime)}</div></div>
       <div class="detail-entry"><i class="fa-solid fa-location-dot"></i><div><strong>region</strong><br>${countryent ? `${countryent.name} (${countryent.code}) ${countryent.emoji || ''}` : (user.region || 'unknown')}</div></div>
     `;
-    if (svgdoc && (!svgrootelement || !mapwrapper.children.length)) injectmap();
-    if (user.region) highlightcountry(user.region);
     showresults();
-    analyzename(user.nickname);
+    analyzegender(user.nickname);
   }
 
   async function handlescrape(username) {
