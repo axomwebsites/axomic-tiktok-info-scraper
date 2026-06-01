@@ -109,6 +109,12 @@
     return div.innerHTML;
   }
 
+  function truncate(str, len) {
+    if (!str) return 'n/a';
+    if (str.length <= len) return str;
+    return str.substring(0, len) + '...';
+  }
+
   function showstatus(type, msg) {
     statusmessage.className = `status-message ${type}`;
     statusmessage.innerHTML = msg;
@@ -185,7 +191,28 @@
   function renderresults(user, stats) {
     const countryent = getcountrybycode(user.region);
     currentusername = user.uniqueId;
-    currentscrapeddata = { scraped: new Date().toISOString(), user: { id: user.id, uniqueId: user.uniqueId, nickname: user.nickname, avatar: user.avatarLarger, signature: user.signature, created: user.createTime, verified: user.verified, region: user.region, language: user.language, private: user.privateAccount }, stats: { followers: stats.followerCount, following: stats.followingCount, hearts: stats.heartCount || stats.heart, videos: stats.videoCount } };
+    currentscrapeddata = {
+      scraped: new Date().toISOString(),
+      user: {
+        id: user.id,
+        uniqueId: user.uniqueId,
+        nickname: user.nickname,
+        avatar: user.avatarLarger,
+        signature: user.signature,
+        created: user.createTime,
+        verified: user.verified,
+        region: user.region,
+        language: user.language,
+        private: user.privateAccount,
+        secUid: user.secUid || null
+      },
+      stats: {
+        followers: stats.followerCount,
+        following: stats.followingCount,
+        hearts: stats.heartCount || stats.heart,
+        videos: stats.videoCount
+      }
+    };
     const avatar = user.avatarLarger || user.avatarMedium || '';
     currentavatarurl = avatar;
     avatarimg.src = avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect fill="%23444" width="100" height="100"/%3E%3Ctext x="50" y="55" text-anchor="middle" font-size="40"%3E?%3C/text%3E%3C/svg%3E';
@@ -204,8 +231,10 @@
                            <div class="stat-block"><div class="stat-number">${formatnumber(stats.followingCount)}</div><div class="stat-label">following</div></div>
                            <div class="stat-block"><div class="stat-number">${formatnumber(stats.heartCount || stats.heart)}</div><div class="stat-label">hearts</div></div>
                            <div class="stat-block"><div class="stat-number">${formatnumber(stats.videoCount)}</div><div class="stat-label">videos</div></div>`;
+    const secuidDisplay = user.secUid ? truncate(user.secUid, 24) : 'n/a';
     detailgrid.innerHTML = `
       <div class="detail-entry"><i class="fa-solid fa-id-card"></i><div><strong>user id</strong><br>${user.id || 'n/a'}</div></div>
+      <div class="detail-entry"><i class="fa-solid fa-fingerprint"></i><div><strong>secUid</strong><br><span class="mono" title="${escapehtml(user.secUid || '')}">${escapehtml(secuidDisplay)}</span></div></div>
       <div class="detail-entry"><i class="fa-solid fa-calendar-alt"></i><div><strong>joined</strong><br>${formattimestamp(user.createTime)}</div></div>
       <div class="detail-entry"><i class="fa-solid fa-location-dot"></i><div><strong>region</strong><br>${countryent ? `${countryent.name} (${countryent.code}) ${countryent.emoji || ''}` : (user.region || 'unknown')}</div></div>
     `;
