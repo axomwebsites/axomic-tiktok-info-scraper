@@ -24,7 +24,6 @@
   const scrolltogglebtn = document.getElementById('scrollToggleBtn');
   const nameanalysissec = document.getElementById('nameAnalysisSection');
   const gendercontent = document.getElementById('genderContent');
-  const agecontent = document.getElementById('ageContent');
   const nationalitycontent = document.getElementById('nationalityContent');
   const avatarmodaloverlay = document.getElementById('avatarModalOverlay');
   const avatarmodalclose = document.getElementById('avatarModalClose');
@@ -191,17 +190,15 @@
     return parts[1] && parts[1].length >= 2 ? parts[1] : null;
   }
 
-  function flagicon(code) { return `<span class="fi fi-${code.toLowerCase()}"></span>`; }
-
   async function analyzename(nickname) {
     const first = extractfirstname(nickname);
     if (!first) { if (nameanalysissec) nameanalysissec.style.display = 'none'; return; }
     if (nameanalysissec) nameanalysissec.style.display = '';
-    gendercontent.innerHTML = '...'; agecontent.innerHTML = '...'; nationalitycontent.innerHTML = '...';
+    gendercontent.innerHTML = '...';
+    nationalitycontent.innerHTML = '...';
     const enc = encodeURIComponent(first);
-    const [genderRes, ageRes, nationRes] = await Promise.allSettled([
+    const [genderRes, nationRes] = await Promise.allSettled([
       fetch(`https://api.genderize.io?name=${enc}`).then(r => r.json()),
-      fetch(`https://api.agify.io?name=${enc}`).then(r => r.json()),
       fetch(`https://api.nationalize.io?name=${enc}`).then(r => r.json())
     ]);
     if (genderRes.status === 'fulfilled' && genderRes.value.gender) {
@@ -210,13 +207,14 @@
       const icon = g.gender === 'male' ? '<i class="fa-solid fa-mars"></i>' : '<i class="fa-solid fa-venus"></i>';
       gendercontent.innerHTML = `<span class="analysis-value">${icon} ${g.gender}</span> <span class="sub">${pct}%</span>`;
     } else gendercontent.innerHTML = 'unavailable';
-    if (ageRes.status === 'fulfilled' && ageRes.value.age) agecontent.innerHTML = `<span class="analysis-value">${ageRes.value.age} yrs</span>`;
-    else agecontent.innerHTML = 'unavailable';
     if (nationRes.status === 'fulfilled' && nationRes.value.country?.length) {
       const top = nationRes.value.country[0];
       const c = getcountrybycode(top.country_id);
       const pct = Math.round(top.probability * 100);
-      const display = c ? `${flagicon(top.country_id)} ${escapehtml(c.name)}` : top.country_id;
+      let display = top.country_id;
+      if (c) {
+        display = `${c.name} (${c.code}) ${c.emoji || ''}`;
+      }
       nationalitycontent.innerHTML = `<span class="analysis-value">${display}</span> <span class="sub">${pct}%</span>`;
     } else nationalitycontent.innerHTML = 'unavailable';
   }
@@ -247,7 +245,11 @@
     const country = getcountrybycode(code);
     if (target) {
       target.classList.add('highlighted');
-      mapcountrylabel.innerHTML = country ? `${flagicon(code)} ${escapehtml(country.name)}` : code;
+      if (country) {
+        mapcountrylabel.innerHTML = `${country.name} (${country.code}) ${country.emoji || ''}`;
+      } else {
+        mapcountrylabel.innerHTML = code;
+      }
       try {
         const box = target.getBBox();
         const pad = 25;
@@ -256,7 +258,13 @@
         svgrootelement.setAttribute('viewBox', newview);
         svgrootelement.addEventListener('transitionend', () => svgrootelement.style.transition = '', { once: true });
       } catch(e) {}
-    } else { mapcountrylabel.innerHTML = country ? `${flagicon(code)} ${escapehtml(country.name)}` : code; }
+    } else {
+      if (country) {
+        mapcountrylabel.innerHTML = `${country.name} (${country.code}) ${country.emoji || ''}`;
+      } else {
+        mapcountrylabel.innerHTML = code;
+      }
+    }
   }
 
   function renderresults(user, stats) {
@@ -273,7 +281,7 @@
     if (user.bioLink?.link) { biolink.href = user.bioLink.link; biolink.textContent = user.bioLink.link; biolink.style.display = 'inline-block'; } else biolink.style.display = 'none';
     badgerow.innerHTML = '';
     const badges = [];
-    if (countryent) badges.push({ icon:'fa-solid fa-globe', text:`${flagicon(user.region)} ${escapehtml(countryent.name)}` });
+    if (countryent) badges.push({ icon:'fa-solid fa-globe', text:`${countryent.name} (${countryent.code}) ${countryent.emoji || ''}` });
     if (user.verified) badges.push({ icon:'fa-solid fa-circle-check', text:'verified' });
     badges.push(user.privateAccount ? { icon:'fa-solid fa-lock', text:'private' } : { icon:'fa-solid fa-earth-americas', text:'public' });
     badges.forEach(b => { const span = document.createElement('span'); span.className = 'badge-modern'; span.innerHTML = `<i class="${b.icon}"></i> ${b.text}`; badgerow.appendChild(span); });
@@ -284,7 +292,7 @@
     detailgrid.innerHTML = `
       <div class="detail-entry"><i class="fa-solid fa-id-card"></i><div><strong>user id</strong><br>${user.id || 'n/a'}</div></div>
       <div class="detail-entry"><i class="fa-solid fa-calendar-alt"></i><div><strong>joined</strong><br>${formattimestamp(user.createTime)}</div></div>
-      <div class="detail-entry"><i class="fa-solid fa-location-dot"></i><div><strong>region</strong><br>${countryent ? `${flagicon(user.region)} ${escapehtml(countryent.name)}` : (user.region || 'unknown')}</div></div>
+      <div class="detail-entry"><i class="fa-solid fa-location-dot"></i><div><strong>region</strong><br>${countryent ? `${countryent.name} (${countryent.code}) ${countryent.emoji || ''}` : (user.region || 'unknown')}</div></div>
     `;
     if (svgdoc && (!svgrootelement || !mapwrapper.children.length)) injectmap();
     if (user.region) highlightcountry(user.region);
@@ -331,11 +339,6 @@
   if (hash) {
     const user = sanitizeusername(hash);
     if (user) { usernameinput.value = user; handlescrape(user); }
-  } else {
-    setTimeout(() => {
-      const ask = prompt('🔍 tiktok data tool — enter username (no @)');
-      if (ask?.trim()) { const clean = sanitizeusername(ask); if(clean){ usernameinput.value = clean; handlescrape(clean); } }
-    }, 300);
   }
   usernameinput.focus();
 })();
