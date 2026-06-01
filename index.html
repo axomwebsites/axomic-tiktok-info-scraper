@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Axomic Tiktok User Info Scraper</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.0.0/css/flag-icons.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    :root {
+      --bg-gradient-start: #f8fafc;
+      --bg-gradient-end: #eef2f5;
+      --surface: rgba(255, 255, 255, 0.92);
+      --surface-2: rgba(255, 255, 255, 0.7);
+      --text-main: #0f172a;
+      --text-soft: #334155;
+      --accent: #ff2a4b;
+      --accent-glow: rgba(255, 42, 75, 0.2);
+      --border-light: rgba(0, 0, 0, 0.08);
+      --card-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+      --map-bg: #eef2ff;
+    }
+    [data-theme="dark"] {
+      --bg-gradient-start: #0b1120;
+      --bg-gradient-end: #111827;
+      --surface: rgba(18, 25, 45, 0.9);
+      --surface-2: rgba(30, 41, 59, 0.7);
+      --text-main: #f1f5f9;
+      --text-soft: #cbd5e1;
+      --accent: #ff5a7c;
+      --accent-glow: rgba(255, 90, 124, 0.25);
+      --border-light: rgba(255, 255, 255, 0.08);
+      --card-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.4);
+      --map-bg: #1e293b;
+    }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+      color: var(--text-main);
+      padding: 2rem 1.5rem;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+    .tool-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 2.5rem;
+      gap: 1rem;
+    }
+    h1 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      background: linear-gradient(120deg, var(--accent), #f97316);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      letter-spacing: -0.3px;
+    }
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+    .icon-btn {
+      background: var(--surface);
+      backdrop-filter: blur(4px);
+      border: 1px solid var(--border-light);
+      border-radius: 60px;
+      padding: 0.6rem 1.2rem;
+      cursor: pointer;
+      font-weight: 500;
+      color: var(--text-main);
+      transition: all 0.2s;
+    }
+    .icon-btn i {
+      margin-right: 6px;
+    }
+    .glass-card {
+      background: var(--surface);
+      backdrop-filter: blur(12px);
+      border-radius: 2rem;
+      padding: 1.8rem;
+      margin-bottom: 2rem;
+      border: 1px solid var(--border-light);
+      box-shadow: var(--card-shadow);
+    }
+    .form-row {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin: 1rem 0 0.5rem;
+    }
+    .username-input {
+      flex: 1;
+      padding: 1rem 1.5rem;
+      border-radius: 60px;
+      border: 1px solid var(--border-light);
+      background: var(--surface-2);
+      font-size: 1rem;
+      color: var(--text-main);
+      font-weight: 500;
+      transition: 0.2s;
+    }
+    .username-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .scrape-btn {
+      background: var(--accent);
+      border: none;
+      border-radius: 60px;
+      padding: 0 2rem;
+      font-weight: 600;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: 0.2s;
+      font-size: 1rem;
+    }
+    .scrape-btn:hover {
+      background: #e01e4a;
+      transform: scale(0.97);
+    }
+    .scrape-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .status-message {
+      margin-top: 1rem;
+      padding: 0.8rem 1.2rem;
+      border-radius: 40px;
+      display: none;
+      align-items: center;
+      gap: 0.8rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    .status-message.error {
+      background: #fee2e2;
+      color: #b91c1c;
+      display: flex;
+    }
+    .status-message.warning {
+      background: #fff3cd;
+      color: #856404;
+      display: flex;
+    }
+    .status-message.info {
+      background: #e0f2fe;
+      color: #0c4a6e;
+      display: flex;
+    }
+    .results-area {
+      display: none;
+      animation: fadeUp 0.4s ease;
+    }
+    .results-area.visible {
+      display: block;
+    }
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .profile-flex {
+      display: flex;
+      gap: 1.8rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 1.8rem;
+    }
+    .avatar-glow {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      overflow: hidden;
+      background: var(--accent-glow);
+      cursor: pointer;
+      border: 3px solid var(--accent);
+      transition: 0.2s;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    }
+    .avatar-glow img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .info h2 {
+      font-size: 1.8rem;
+      font-weight: 700;
+    }
+    .handle a {
+      color: var(--text-soft);
+      text-decoration: none;
+      font-weight: 500;
+      border-bottom: 1px dashed;
+    }
+    .bio {
+      margin-top: 0.5rem;
+      color: var(--text-soft);
+    }
+    .badge-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 1rem 0;
+    }
+    .badge-modern {
+      background: var(--surface-2);
+      padding: 0.4rem 1rem;
+      border-radius: 40px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      backdrop-filter: blur(4px);
+    }
+    .stats-modern {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem;
+      margin: 2rem 0;
+    }
+    .stat-block {
+      background: var(--surface-2);
+      border-radius: 1.5rem;
+      padding: 1rem;
+      text-align: center;
+      transition: 0.2s;
+    }
+    .stat-number {
+      font-size: 1.8rem;
+      font-weight: 800;
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .detail-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.8rem;
+      margin: 1.5rem 0;
+    }
+    .detail-entry {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      border-bottom: 1px solid var(--border-light);
+      padding: 0.7rem 0;
+    }
+    .analysis-panel {
+      background: var(--surface-2);
+      border-radius: 1.5rem;
+      padding: 1.2rem;
+      margin: 1.2rem 0;
+    }
+    .analysis-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      margin-top: 0.8rem;
+    }
+    .analysis-chip {
+      flex: 1;
+    }
+    .analysis-value {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    .map-modern {
+      margin-top: 1.5rem;
+    }
+    .map-wrapper svg {
+      width: 100%;
+      border-radius: 1.2rem;
+      background: var(--map-bg);
+    }
+    .action-group {
+      display: flex;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+    .btn-outline-light {
+      background: transparent;
+      border: 1px solid var(--border-light);
+      border-radius: 40px;
+      padding: 0.5rem 1.2rem;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s;
+    }
+    .modal-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+    .modal-card {
+      background: var(--surface);
+      border-radius: 2rem;
+      padding: 1rem;
+      max-width: 90vw;
+    }
+    .modal-card img {
+      max-width: 80vw;
+      max-height: 70vh;
+      border-radius: 1.2rem;
+    }
+    @media (max-width: 700px) {
+      body {
+        padding: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="tool-header">
+    <h1><i class="fa-brands fa-tiktok"></i> profile insight</h1>
+    <div class="header-actions">
+      <button id="scrollToggleBtn" class="icon-btn"><i class="fa-solid fa-angles-down"></i> jump</button>
+      <button id="themeToggle" class="icon-btn"><i class="fa-solid fa-moon"></i> theme</button>
+    </div>
+  </div>
+
+  <div class="glass-card" id="mainCard">
+    <form id="scrapeForm">
+      <div class="form-row">
+        <input type="text" id="usernameInput" class="username-input" placeholder="@username or tiktok.com/@user ..." autocomplete="off">
+        <button type="submit" id="scrapeBtn" class="scrape-btn"><i class="fa-brands fa-tiktok"></i> analyze</button>
+      </div>
+      <div id="statusMessage" class="status-message"></div>
+    </form>
+  </div>
+
+  <div id="resultsContainer" class="results-area">
+    <div class="glass-card">
+      <div class="profile-flex">
+        <div id="avatarContainer" class="avatar-glow"><img id="avatarImg" alt="avatar"></div>
+        <div class="info">
+          <div style="display: flex; gap: 10px; align-items: baseline;"><h2 id="displayName">—</h2><span id="verifiedBadge" style="display:none;"><i class="fa-solid fa-circle-check" style="color:#20D5EC;"></i></span></div>
+          <div id="usernameHandle" class="handle"></div>
+          <div id="bioText" class="bio"></div>
+          <a id="bioLink" href="#" target="_blank" style="font-size:0.8rem; display:none;"></a>
+        </div>
+      </div>
+      <div id="badgeRow" class="badge-container"></div>
+      <div id="statsGrid" class="stats-modern"></div>
+      
+      <div id="nameAnalysisSection" class="analysis-panel" style="display:none;">
+        <div><i class="fa-regular fa-user"></i> name intelligence</div>
+        <div class="analysis-row">
+          <div class="analysis-chip"><div class="analysis-label" style="font-size:0.7rem;">gender</div><div id="genderContent">—</div></div>
+          <div class="analysis-chip"><div class="analysis-label" style="font-size:0.7rem;">age estimate</div><div id="ageContent">—</div></div>
+          <div class="analysis-chip"><div class="analysis-label" style="font-size:0.7rem;">nationality</div><div id="nationalityContent">—</div></div>
+        </div>
+      </div>
+
+      <div id="detailGrid" class="detail-list"></div>
+      <div class="action-group">
+        <button id="btnDownload" class="btn-outline-light"><i class="fa-solid fa-download"></i> export json</button>
+        <button id="btnShare" class="btn-outline-light"><i class="fa-solid fa-share-nodes"></i> share link</button>
+        <button id="btnImport" class="btn-outline-light"><i class="fa-solid fa-upload"></i> import json</button>
+        <input type="file" id="importFileInput" accept=".json" style="display:none">
+      </div>
+    </div>
+
+    <div class="glass-card map-modern">
+      <div style="display:flex; justify-content: space-between;"><span><i class="fa-solid fa-map-location-dot"></i> origin highlight</span><span id="mapCountryLabel" style="font-weight:500;"></span></div>
+      <div id="mapWrapper" class="map-wrapper"></div>
+    </div>
+  </div>
+</div>
+
+<div id="avatarModalOverlay" class="modal-overlay">
+  <div class="modal-card">
+    <img id="avatarModalImg" alt="preview">
+    <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 1rem;">
+      <a id="avatarModalDownload" class="btn-outline-light" download><i class="fa-solid fa-floppy-disk"></i> save</a>
+      <button id="avatarModalClose" class="btn-outline-light">close</button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+  </html>
