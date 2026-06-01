@@ -11,9 +11,18 @@
       padding: 0;
       box-sizing: border-box;
     }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+      color: var(--text-main);
+      padding: 2rem 1.5rem;
+      line-height: 1.5;
+      min-height: 100vh;
+      transition: background 0.3s, color 0.2s;
+    }
     :root {
-      --bg-gradient-start: #f8fafc;
-      --bg-gradient-end: #eef2f5;
+      --bg-start: #f8fafc;
+      --bg-end: #eef2f5;
       --surface: rgba(255, 255, 255, 0.92);
       --surface-2: rgba(255, 255, 255, 0.7);
       --text-main: #0f172a;
@@ -22,11 +31,10 @@
       --accent-glow: rgba(255, 42, 75, 0.2);
       --border-light: rgba(0, 0, 0, 0.08);
       --card-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
-      --map-bg: #eef2ff;
     }
     [data-theme="dark"] {
-      --bg-gradient-start: #0b1120;
-      --bg-gradient-end: #111827;
+      --bg-start: #0b1120;
+      --bg-end: #111827;
       --surface: rgba(18, 25, 45, 0.9);
       --surface-2: rgba(30, 41, 59, 0.7);
       --text-main: #f1f5f9;
@@ -35,18 +43,43 @@
       --accent-glow: rgba(255, 90, 124, 0.25);
       --border-light: rgba(255, 255, 255, 0.08);
       --card-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.4);
-      --map-bg: #1e293b;
     }
-    body {
-      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
-      color: var(--text-main);
-      padding: 2rem 1.5rem;
-      line-height: 1.5;
-      min-height: 100vh;
+    [data-theme="cyber"] {
+      --bg-start: #0a0f1f;
+      --bg-end: #0d1428;
+      --surface: rgba(0, 255, 255, 0.08);
+      --surface-2: rgba(0, 255, 255, 0.12);
+      --text-main: #00ffff;
+      --text-soft: #7fffd4;
+      --accent: #ff00ff;
+      --accent-glow: rgba(255, 0, 255, 0.3);
+      --border-light: rgba(0, 255, 255, 0.3);
+      --card-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+    }
+    [data-theme="nature"] {
+      --bg-start: #1a3b2e;
+      --bg-end: #0f2a1f;
+      --surface: rgba(34, 68, 51, 0.85);
+      --surface-2: rgba(40, 80, 55, 0.7);
+      --text-main: #e8f5e9;
+      --text-soft: #c8e6c9;
+      --accent: #ffb74d;
+      --accent-glow: rgba(255, 183, 77, 0.3);
+      --border-light: rgba(255, 183, 77, 0.4);
+    }
+    [data-theme="sunset"] {
+      --bg-start: #2d1b2e;
+      --bg-end: #1a0f2a;
+      --surface: rgba(255, 140, 100, 0.15);
+      --surface-2: rgba(255, 120, 80, 0.25);
+      --text-main: #ffdfc4;
+      --text-soft: #ffb48a;
+      --accent: #ff6b4a;
+      --accent-glow: rgba(255, 107, 74, 0.4);
+      --border-light: rgba(255, 107, 74, 0.5);
     }
     .container {
-      max-width: 1300px;
+      max-width: 1000px;
       margin: 0 auto;
     }
     .tool-header {
@@ -69,6 +102,19 @@
     .header-actions {
       display: flex;
       gap: 12px;
+      align-items: center;
+    }
+    .theme-select {
+      background: var(--surface);
+      backdrop-filter: blur(4px);
+      border: 1px solid var(--border-light);
+      border-radius: 60px;
+      padding: 0.6rem 1.2rem;
+      font-weight: 500;
+      color: var(--text-main);
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-family: inherit;
     }
     .icon-btn {
       background: var(--surface);
@@ -130,7 +176,7 @@
       font-size: 1rem;
     }
     .scrape-btn:hover {
-      background: #e01e4a;
+      filter: brightness(0.9);
       transform: scale(0.97);
     }
     .scrape-btn:disabled {
@@ -288,14 +334,6 @@
       font-size: 1.2rem;
       font-weight: 700;
     }
-    .map-modern {
-      margin-top: 1.5rem;
-    }
-    .map-wrapper svg {
-      width: 100%;
-      border-radius: 1.2rem;
-      background: var(--map-bg);
-    }
     .action-group {
       display: flex;
       gap: 0.8rem;
@@ -349,8 +387,14 @@
   <div class="tool-header">
     <h1><i class="fa-brands fa-tiktok"></i> Axomic Tiktok User Info Scraper</h1>
     <div class="header-actions">
+      <select id="themeSelect" class="theme-select">
+        <option value="light">☀️ Light</option>
+        <option value="dark">🌙 Dark</option>
+        <option value="cyber">💠 Cyber</option>
+        <option value="nature">🌿 Nature</option>
+        <option value="sunset">🌅 Sunset</option>
+      </select>
       <button id="scrollToggleBtn" class="icon-btn"><i class="fa-solid fa-angles-down"></i> jump</button>
-      <button id="themeToggle" class="icon-btn"><i class="fa-solid fa-moon"></i> theme</button>
     </div>
   </div>
 
@@ -382,7 +426,6 @@
         <div><i class="fa-regular fa-user"></i> name intelligence</div>
         <div class="analysis-row">
           <div class="analysis-chip"><div class="analysis-label" style="font-size:0.7rem;">gender</div><div id="genderContent">—</div></div>
-          <div class="analysis-chip"><div class="analysis-label" style="font-size:0.7rem;">nationality</div><div id="nationalityContent">—</div></div>
         </div>
       </div>
 
@@ -393,11 +436,6 @@
         <button id="btnImport" class="btn-outline-light"><i class="fa-solid fa-upload"></i> import json</button>
         <input type="file" id="importFileInput" accept=".json" style="display:none">
       </div>
-    </div>
-
-    <div class="glass-card map-modern">
-      <div style="display:flex; justify-content: flex-end;"><span id="mapCountryLabel" style="font-weight:500;"></span></div>
-      <div id="mapWrapper" class="map-wrapper"></div>
     </div>
   </div>
 </div>
