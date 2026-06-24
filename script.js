@@ -44,7 +44,7 @@
     return resp.json();
   }
 
-  (async function initData() {
+  (async function initdata() {
     try {
       [countriesdata, languagesdata] = await Promise.all([
         loadjson('countries.json'),
@@ -161,19 +161,157 @@
     throw lasterr || new Error('all proxies failed');
   }
 
-  function extractdata(html) {
-    const regex = /<script[^>]*id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/i;
-    const match = html.match(regex);
-    if (!match) throw new Error('missing script');
-    let data = JSON.parse(match[1]);
-    const scope = data.__DEFAULT_SCOPE__;
-    if (!scope) throw new Error('invalid scope');
-    const detail = scope['webapp.user-detail'];
-    if (!detail?.userInfo) throw new Error('no userInfo');
-    const user = detail.userInfo.user || {};
-    const stats = detail.userInfo.stats || {};
-    if (!user.uniqueId) throw new Error('no username found');
-    return { user, stats };
+  function extractuserdatawithfallback(html) {
+    let user = null;
+    let stats = null;
+    let region = null;
+
+    try {
+      const regex1 = /<script[^>]*id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/i;
+      const match1 = html.match(regex1);
+      if (match1 && match1[1]) {
+        const data = JSON.parse(match1[1]);
+        const scope = data.__DEFAULT_SCOPE__;
+        if (scope && scope['webapp.user-detail']) {
+          const detail = scope['webapp.user-detail'];
+          if (detail.userInfo) {
+            user = detail.userInfo.user || {};
+            stats = detail.userInfo.stats || {};
+            region = user.region || null;
+            if (user.uniqueId) {
+              return { user, stats, region };
+            }
+          }
+        }
+      }
+    } catch(e) {}
+
+    try {
+      const regionmatch = html.match(/"region"\s*:\s*"([A-Z]{2})"/i);
+      if (regionmatch && regionmatch[1]) {
+        region = regionmatch[1];
+        const usermatch = html.match(/"userInfo"\s*:\s*\{([\s\S]*?)\}/);
+        if (usermatch) {
+          try {
+            const userobj = JSON.parse('{' + usermatch[1] + '}');
+            if (userobj.user) {
+              user = userobj.user;
+              stats = userobj.stats || {};
+              if (!user.uniqueId) user.uniqueId = sanitizeusername(html);
+              return { user, stats, region };
+            }
+          } catch(e) {}
+        }
+        const uname = sanitizeusername(html);
+        if (uname) {
+          user = { uniqueId: uname };
+          stats = {};
+          return { user, stats, region };
+        }
+      }
+    } catch(e) {}
+
+    try {
+      const locmatch = html.match(/"locationCreated"\s*:\s*"([A-Z]{2})"/i);
+      if (locmatch && locmatch[1]) {
+        region = locmatch[1];
+        const userobj = extractanyuser(html);
+        if (userobj) {
+          user = userobj.user;
+          stats = userobj.stats || {};
+          return { user, stats, region };
+        }
+      }
+    } catch(e) {}
+
+    try {
+      const sigiregex = /<script[^>]*id="SIGI_STATE"[^>]*>([\s\S]*?)<\/script>/i;
+      const sigimatch = html.match(sigiregex);
+      if (sigimatch && sigimatch[1]) {
+        const data = JSON.parse(sigimatch[1]);
+        const paths = [
+          data?.UserModule?.users,
+          data?.user,
+          data?.UserPage?.userInfo?.user,
+          data?.UserPage?.user
+        ];
+        for (let obj of paths) {
+          if (obj && typeof obj === 'object') {
+            const firstkey = Object.keys(obj)[0];
+            const userobj = obj[firstkey] || obj;
+            if (userobj.uniqueId) {
+              user = userobj;
+              stats = userobj.stats || {};
+              region = user.region || null;
+              return { user, stats, region };
+            }
+          }
+        }
+      }
+    } catch(e) {}
+
+    try {
+      const scripttags = html.match(/<script[^>]*>([\s\S]*?)<\/script>/gi) || [];
+      for (let script of scripttags) {
+        try {
+          const clean = script.replace(/<script[^>]*>|<\/script>/gi, '').trim();
+          if (clean.startsWith('{') || clean.startsWith('[')) {
+            const data = JSON.parse(clean);
+            const paths = [data.user, data.userInfo?.user, data.UserPage?.userInfo?.user];
+            for (let obj of paths) {
+              if (obj && obj.uniqueId) {
+                user = obj;
+                stats = obj.stats || {};
+                region = user.region || null;
+                return { user, stats, region };
+              }
+            }
+            if (data.userInfo?.user) {
+              user = data.userInfo.user;
+              stats = data.userInfo.stats || {};
+              region = user.region || null;
+              return { user, stats, region };
+            }
+          }
+        } catch(e) {}
+      }
+    } catch(e) {}
+
+    if (!user) {
+      const uname = sanitizeusername(html);
+      if (uname) {
+        user = { uniqueId: uname };
+        stats = {};
+        region = null;
+        return { user, stats, region };
+      }
+    }
+    throw new Error('could not extract user data');
+  }
+
+  function extractanyuser(html) {
+    try {
+      const regex = /"userInfo"\s*:\s*\{([\s\S]*?)\}/;
+      const match = html.match(regex);
+      if (match) {
+        const obj = JSON.parse('{' + match[1] + '}');
+        return obj;
+      }
+    } catch(e) {}
+    try {
+      const scripttags = html.match(/<script[^>]*>([\s\S]*?)<\/script>/gi) || [];
+      for (let script of scripttags) {
+        try {
+          const clean = script.replace(/<script[^>]*>|<\/script>/gi, '').trim();
+          if (clean.startsWith('{') || clean.startsWith('[')) {
+            const data = JSON.parse(clean);
+            if (data.userInfo) return data.userInfo;
+            if (data.user) return { user: data.user, stats: data.stats || {} };
+          }
+        } catch(e) {}
+      }
+    } catch(e) {}
+    return null;
   }
 
   function extractfirstname(nick) {
@@ -296,7 +434,10 @@
     hidestatus(); hideresults(); setloading(true);
     try {
       const html = await fetchtiktokpage(username);
-      const { user, stats } = extractdata(html);
+      const { user, stats, region } = extractuserdatawithfallback(html);
+      if (region && !user.region) {
+        user.region = region;
+      }
       renderresults(user, stats);
     } catch(err) {
       hideresults();
